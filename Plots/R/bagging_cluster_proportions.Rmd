@@ -1,0 +1,125 @@
+---
+title: "Bagging Cluster Stability Proportions"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=F, message=F, warning=F}
+
+library(tidyverse)
+library(ggtext)
+library(gghalves)
+library(bayesplot)
+```
+
+```{r}
+stabpath = '/Users/Jacob/Desktop/GitHub/NVLD/Created_Data/nvld_cluster_data/Output/Results/nvld_cluster_data_Full_Stab.csv'
+
+subpath = "~/Desktop/GitHub/NVLD/Created_Data/nvld_cluster_data/Output/Results/nvld_cluster_data_Full_Subtypes.csv"
+```
+
+```{r}
+
+stab = read.csv(stabpath) %>% 
+  rename(Key = Key_x) %>%
+  rename_all(funs(gsub("X", "", .))) 
+
+stab_key = stab %>% select(Key)
+stab = stab %>% select(-Key)
+diag(stab) = NA
+stab = cbind(stab_key, stab)
+
+sub_frame = read.csv(subpath) %>% 
+  select(Key, URSI)
+
+sub_stab = stab %>%
+  merge(., sub_frame) %>%
+  merge(., stab)
+
+sub1 = sub_frame %>% filter(Subtype == 1)
+sub1 = sub1 %>% select(paste0(sub1$Key, ".0")) %>% gather("ID", "Prop") %>% mutate(Profile = 1)
+
+sub2 = sub_frame %>% filter(Subtype == 2)
+sub2 = sub2 %>% select(paste0(sub2$Key, ".0")) %>% gather("ID", "Prop") %>% mutate(Profile = 2)
+
+sub3 = sub_frame %>% filter(Subtype == 3)
+sub3 = sub3 %>% select(paste0(sub3$Key, ".0")) %>% gather("ID", "Prop") %>% mutate(Profile = 3)
+
+sub4 = sub_frame %>% filter(Subtype == 4)
+sub4 = sub4 %>% select(paste0(sub4$Key, ".0")) %>% gather("ID", "Prop") %>% mutate(Profile = 4)
+
+props = rbind(sub1, sub2, sub3, sub4) %>% 
+  mutate(Profile = as.factor(Profile)) %>%
+  filter(!is.na(Prop))
+
+prop_summary = props %>% 
+  group_by(Profile) %>%
+  summarise(Mean = round(mean(Prop),2), SD = round(sd(Prop),2)) %>%
+  mutate(mean_sd = paste0(Mean, ' (', SD, ')')) %>% 
+  select(-Mean, -SD)
+
+```
+
+```{r}
+
+colors_line = c(scales::alpha("#A12424FF", 1), scales::alpha("#15839AFF", 1),
+                    scales::alpha("#FF9100FF", 1), scales::alpha("#B7CE00FF", 1))
+
+ggplot(props, aes(Profile, Prop, fill=Profile)) + 
+    theme(legend.position="none") +
+    theme(axis.title.x = element_text(size=14, face="bold",),
+          axis.title.y = element_text(size=14, face="bold",),
+          axis.line = element_line(size=.5, colour = "black"),
+        axis.line.y = element_line(size=.5, colour = "black"),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(), 
+          axis.text.y = element_text(face="bold", color="black"),
+          axis.ticks.length=unit(0.1,"cm"),
+          axis.ticks.y=element_line(size=1.1),
+          legend.position = "none",
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(), 
+          line = element_blank(),
+          panel.grid = element_blank(),
+          plot.title = element_text(hjust = .5, size = 16),
+          axis.ticks.x=element_blank()) + 
+    scale_colour_manual(values=colors_line) +
+    scale_fill_manual(values=colors_line)  +
+    theme(panel.grid.major = element_line(linetype = "blank"), 
+          panel.grid.minor = element_line(linetype = "blank"),
+          plot.title = element_text(size=16, face = "bold",hjust = -.23),
+          axis.title = element_text(size = 15), 
+          axis.text.x = element_text(size = 16, face = "bold"), 
+          axis.text.y = element_text(size = 12, face = "bold"), 
+          panel.background = element_rect(fill = NA), 
+          plot.background = element_rect(fill = NA, colour = NA), 
+          legend.position = "none") +
+    theme(
+          panel.grid.major = element_line(colour = "#d3d3d3"),
+          axis.ticks.y = element_blank(),
+          axis.title.y = element_text(face = "bold", color = "black", size = 14, vjust = 2.5)) +
+    theme(strip.text = element_text(size = 15, face = "bold")) +
+    geom_half_violin(data = props %>% filter(Profile == "1"), position = position_nudge(x = 0.3, y =0), aes(color = Profile), size = .8, alpha = .5, width = .4, side = "r") +
+    geom_half_violin(data = props %>% filter(Profile == "2"), position = position_nudge(x = 0.3, y =0), aes(color = Profile), size = .8, alpha = .5, width = .4, side = "r") +
+    geom_half_violin(data = props %>% filter(Profile == "3"), position = position_nudge(x = 0.3, y =0), aes(color = Profile), size = .8, alpha = .5, width = .4, side = "r") +
+    geom_half_violin(data = props %>% filter(Profile == "4"), position = position_nudge(x = 0.3, y =0), aes(color = Profile), size = .8, alpha = .5, width = .4, side = "r") +
+    geom_boxplot(data = props %>% filter(Profile == "1"), alpha = .0, width = .15, aes(color = Profile), size = .8,position = position_nudge(x = 0.3, y = 0)) +
+    geom_boxplot(data = props %>% filter(Profile == "2"), alpha = .0, width = .15, aes(color = Profile), size = .8,position = position_nudge(x = 0.3, y = 0)) +
+    geom_boxplot(data = props %>% filter(Profile == "3"), alpha = .0, width = .15, aes(color = Profile), size = .8,position = position_nudge(x = 0.3, y = 0)) +
+    geom_boxplot(data = props %>% filter(Profile == "4"), alpha = .0, width = .15, aes(color = Profile), size = .8,position = position_nudge(x = 0.3, y = 0)) +
+    geom_jitter(aes(color = Profile), width=0.1, alpha = .2, size = 1) +
+  scale_x_discrete(labels = c('<i style="color:#A12424FF;">Profile 1</i>', 
+                              '<i style="color:#15839AFF;">Profile 2</i>', 
+                              '<i style="color:#FF9100FF;">Profile 3</i>', 
+                              '<i style="color:#B7CE00FF;">Profile 4</i>')) +
+    theme(axis.text.x = element_markdown()) +
+    labs(x = " ", y = "Proportion") + 
+    ggtitle("Leiden Bagging Cluster Stability Proportions") #+
+    #geom_text(data = prop_summary, aes(label=mean_sd), vjust = -1.2, check_overlap = T, 
+    #        color = "black", size = 4.5, fontface = "bold", angle = 0) 
+
+```
